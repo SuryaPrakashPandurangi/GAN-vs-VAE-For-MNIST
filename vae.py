@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
+import vaeConfig
 
 def plot(encoder, decoder):
     n = 30
@@ -34,7 +35,7 @@ def plot(encoder, decoder):
     plt.yticks(pixel_range, ySamples)
     plt.xlabel("X Axis")
     plt.ylabel("Y Axis")
-    plt.imshow(figure, cmap="Greys_r")
+    plt.imshow(figure, cmap=vaeConfig.cmap)
     plt.show()
 
 class Sampling(layers.Layer):
@@ -90,7 +91,7 @@ def encoder():
     z_mean = layers.Dense(latentDimentionality, name="z_mean")(x)
     z_log_var = layers.Dense(latentDimentionality, name="z_log_var")(x)
     z = Sampling()([z_mean, z_log_var])
-    encoder = keras.Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
+    encoder = keras.Model(x, [z_mean, z_log_var, z], name="encoder")
     encoder.summary()
     return encoder
 
@@ -101,7 +102,7 @@ def decoder():
     x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
     x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
     decoder_outputs = layers.Conv2DTranspose(1, 3, activation="sigmoid", padding="same")(x)
-    decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
+    decoder = keras.Model(latentDimentionality, decoder_outputs, name="decoder")
     decoder.summary()
     return decoder
 
