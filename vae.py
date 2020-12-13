@@ -5,6 +5,10 @@ from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 import vaeConfig
 
+
+activation = vaeConfig.activation
+padding = vaeConfig.padding
+
 def plot(encoder, decoder):
     n = 30
     digitSize = 28
@@ -84,10 +88,10 @@ class VAE(keras.Model):
 
 def encoder():
     x = keras.Input(shape=(28, 28, 1))
-    x = layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(x)
-    x = layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
+    x = layers.Conv2D(32, 3, activation=activation, strides=2, padding=padding)(x)
+    x = layers.Conv2D(64, 3, activation=activation, strides=2, padding=padding)(x)
     x = layers.Flatten()(x)
-    x = layers.Dense(16, activation="relu")(x)
+    x = layers.Dense(16, activation=activation)(x)
     z_mean = layers.Dense(latentDimentionality, name="z_mean")(x)
     z_log_var = layers.Dense(latentDimentionality, name="z_log_var")(x)
     z = Sampling()([z_mean, z_log_var])
@@ -97,12 +101,12 @@ def encoder():
 
 def decoder():
     x = keras.Input(shape=(latentDimentionality,))
-    x = layers.Dense(7 * 7 * 64, activation="relu")(x)
+    x = layers.Dense(7 * 7 * 64, activation=activation)(x)
     x = layers.Reshape((7, 7, 64))(x)
-    x = layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
-    x = layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
-    decoder_outputs = layers.Conv2DTranspose(1, 3, activation="sigmoid", padding="same")(x)
-    decoder = keras.Model(latentDimentionality, decoder_outputs, name="decoder")
+    x = layers.Conv2DTranspose(64, 3, activation=activation, strides=2, padding=padding)(x)
+    x = layers.Conv2DTranspose(32, 3, activation=activation, strides=2, padding=padding)(x)
+    decoder_outputs = layers.Conv2DTranspose(1, 3, activation=vaeConfig.activationSigmoid,padding=padding)(x)
+    decoder = keras.Model(latentDimentionality, decoder_outputs, name=vaeConfig.decoderName)
     decoder.summary()
     return decoder
 
@@ -116,7 +120,7 @@ encoder = encoder()
 decoder = decoder()
 
 vae = VAE(encoder, decoder)
-vae.compile(optimizer=keras.optimizers.Adam(),metrics=['accuracy'])
+vae.compile(optimizer=keras.optimizers.Adam(),metrics=metrics)
 vae.fit(mnistData, epochs=500, batch_size=128)
 
 plot(encoder, decoder)
