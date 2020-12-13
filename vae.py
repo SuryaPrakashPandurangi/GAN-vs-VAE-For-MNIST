@@ -49,9 +49,6 @@ class Sampling(layers.Layer):
 
 latentDimentionality = 2
 
-
-
-
 def returnMNISTData():
     (x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
     return (x_train, _), (x_test, _)
