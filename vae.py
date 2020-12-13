@@ -120,7 +120,7 @@ encoder = encoder()
 decoder = decoder()
 
 vae = VAE(encoder, decoder)
-vae.compile(optimizer=keras.optimizers.Adam(),metrics=metrics)
+vae.compile(optimizer=keras.optimizers.Adam(),metrics=vaeConfig.metrics)
 vae.fit(mnistData, epochs=500, batch_size=128)
 
 plot(encoder, decoder)
