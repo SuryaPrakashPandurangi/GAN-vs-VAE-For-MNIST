@@ -9,6 +9,15 @@ import vaeConfig
 activation = vaeConfig.activation
 padding = vaeConfig.padding
 
+class Sampling(layers.Layer):
+
+    def call(self, inputs):
+        meanZAxis, zLogVariable = inputs
+        batch = tf.shape(meanZAxis)[0]
+        dim = tf.shape(meanZAxis)[1]
+        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
+        return meanZAxis + tf.exp(0.5 * zLogVariable) * epsilon
+    
 def plot(encoder, decoder):
     n = 30
     digitSize = 28
@@ -37,54 +46,22 @@ def plot(encoder, decoder):
     ySamples = np.round(y, 1)
     plt.xticks(pixel_range, xSamples)
     plt.yticks(pixel_range, ySamples)
-    plt.xlabel("X Axis")
-    plt.ylabel("Y Axis")
+    plt.xlabel("Hor")
+    plt.ylabel("Vert")
     plt.imshow(figure, cmap=vaeConfig.cmap)
     plt.show()
 
-class Sampling(layers.Layer):
-
-    def call(self, inputs):
-        z_mean, z_log_var = inputs
-        batch = tf.shape(z_mean)[0]
-        dim = tf.shape(z_mean)[1]
-        epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
-        return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
 
 latentDimentionality = 2
 
+
+
+
+
 def returnMNISTData():
     (x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
     return (x_train, _), (x_test, _)
-
-class VAE(keras.Model):
-    def __init__(self, encoder, decoder, **kwargs):
-        super(VAE, self).__init__(**kwargs)
-        self.encoder = encoder
-        self.decoder = decoder
-
-    def train_step(self, data):
-        if isinstance(data, tuple):
-            data = data[0]
-        with tf.GradientTape() as tape:
-            z_mean, z_log_var, z = encoder(data)
-            reconstruction = decoder(z)
-            reconstruction_loss = tf.reduce_mean(
-                keras.losses.binary_crossentropy(data, reconstruction)
-            )
-            reconstruction_loss *= 28 * 28
-            kl_loss = 1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var)
-            kl_loss = tf.reduce_mean(kl_loss)
-            kl_loss *= -0.5
-            total_loss = reconstruction_loss + kl_loss
-        grads = tape.gradient(total_loss, self.trainable_weights)
-        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-        return {
-            "Loss": total_loss,
-            "Reconstruction Loss": reconstruction_loss,
-            "KL Loss": kl_loss,
-        }
 
 def encoder():
     x = keras.Input(shape=(28, 28, 1))
@@ -92,10 +69,10 @@ def encoder():
     x = layers.Conv2D(64, 3, activation=activation, strides=2, padding=padding)(x)
     x = layers.Flatten()(x)
     x = layers.Dense(16, activation=activation)(x)
-    z_mean = layers.Dense(latentDimentionality, name="z_mean")(x)
-    z_log_var = layers.Dense(latentDimentionality, name="z_log_var")(x)
-    z = Sampling()([z_mean, z_log_var])
-    encoder = keras.Model(x, [z_mean, z_log_var, z], name="encoder")
+    meanZAxis = layers.Dense(latentDimentionality, name="meanZAxis")(x)
+    zLogVariable = layers.Dense(latentDimentionality, name="zLogVariable")(x)
+    z = Sampling()([meanZAxis, zLogVariable])
+    encoder = keras.Model(x, [meanZAxis, zLogVariable, z], name="encoder")
     encoder.summary()
     return encoder
 
@@ -110,6 +87,31 @@ def decoder():
     decoder.summary()
     return decoder
 
+class VAE(keras.Model):
+    def __init__(self, encoder, decoder, **kwargs):
+        super(VAE, self).__init__(**kwargs)
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def train_step(self, data):
+        if isinstance(data, tuple):
+            data = data[0]
+        with tf.GradientTape() as tape:
+            meanZAxis, zLogVariable, z = encoder(data)
+            reconstruction = decoder(z)
+            reconstructionLoss = tf.reduce_mean(
+                keras.losses.binary_crossentropy(data, reconstruction)
+            )
+            reconstructionLoss *= 28 * 28
+            kLoss = 1 + zLogVariable - tf.square(meanZAxis) - tf.exp(zLogVariable)
+            kLoss = tf.reduce_mean(kLoss)
+            kLoss *= -0.5
+            total_loss = reconstructionLoss + kLoss
+        grads = tape.gradient(total_loss, self.trainable_weights)
+        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+        return {
+            "Reconstruction Loss": reconstructionLoss
+        }
 
 (x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
 
@@ -121,6 +123,6 @@ decoder = decoder()
 
 vae = VAE(encoder, decoder)
 vae.compile(optimizer=keras.optimizers.Adam(),metrics=vaeConfig.metrics)
-vae.fit(mnistData, epochs=500, batch_size=128)
+vae.fit(mnistData, epochs=vaeConfig.epochs, batch_size=vaeConfig.batches)
 
 plot(encoder, decoder)
